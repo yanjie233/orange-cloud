@@ -42,6 +42,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             SWIFT_ACTIVE_COMPILATION_CONDITIONS="OPENSOURCE_UNLOCKED" \
+            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -solver-expression-time-threshold=5000 -Xfrontend -solver-memory-threshold=4096' \
             build 2>&1 | tee "$RUNNER_TEMP/build.log"
 
       - name: Show failure summary
