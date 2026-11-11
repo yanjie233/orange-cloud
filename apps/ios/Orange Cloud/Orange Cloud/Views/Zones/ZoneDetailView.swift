@@ -687,15 +687,21 @@ struct ZoneDetailView: View {
         } message: {
             Text("当前授权未包含此操作所需权限（\(deniedScopeHint)）。点「一键重授权」补齐，无需退出登录。")
         }
-        .alert("操作失败", isPresented: .init(
-            get: { actionsViewModel.error != nil },
-            set: { if !$0 { actionsViewModel.error = nil } }
-        )) {
+        .alert("操作失败", isPresented: actionErrorBinding) {
             apiErrorDocButton(for: actionsViewModel.error)
             Button("好", role: .cancel) {}
         } message: {
             Text(actionsViewModel.error ?? "")
         }
+    }
+
+    /// 单独抽出来：写成内联 `.init(get:set:)` 会让这一整条 modifier 链在
+    /// Xcode 26 / Release 下触发 "unable to type-check this expression in reasonable time"。
+    private var actionErrorBinding: Binding<Bool> {
+        Binding(
+            get: { actionsViewModel.error != nil },
+            set: { if !$0 { actionsViewModel.error = nil } }
+        )
     }
 
     // MARK: - 暂停态与缓存同步
