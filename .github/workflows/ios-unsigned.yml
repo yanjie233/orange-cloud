@@ -43,12 +43,14 @@ jobs:
             DEVELOPMENT_TEAM="" \
             SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) OPENSOURCE_UNLOCKED' \
             SWIFT_COMPILATION_MODE=singlefile \
-            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -solver-expression-time-threshold=60000' \
+            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -solver-expression-time-threshold -Xfrontend 60000' \
             build 2>&1 | tee "$RUNNER_TEMP/build.log"
 
       - name: Show failure summary
         if: failure()
         run: |
+          echo "== solver flag 是否真的进了编译命令 =="
+          grep -c "solver-expression-time-threshold" "$RUNNER_TEMP/build.log" || true
           grep -nE "error:|BUILD FAILED|The following build commands failed|Command .* failed" "$RUNNER_TEMP/build.log" | tail -40 || tail -80 "$RUNNER_TEMP/build.log"
 
       - uses: actions/upload-artifact@v4

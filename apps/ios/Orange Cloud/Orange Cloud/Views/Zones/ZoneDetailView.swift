@@ -94,70 +94,11 @@ struct ZoneDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                heroCard
-
-                // 分析：图表直接内嵌第一层级，置于管理之前
-                analyticsSection
-
-                // 本卡内 eager 门控行的保留判据：目的页是叶子（内部只开 sheet、不再 push）。
-                // 「规则」「负载均衡」的目的页还要继续 push，已改值式（ZoneRoute + 栈根 navdest）；
-                // 其余若日后加内层 push，必须同步改值式。
-                managementCard
-
-                // 整卡仅在读到任一组配置时出现：
-                // 机器人管控全套餐可用但需 bot-management.read；
-                // 两个 zone setting 是 Pro 起，免费套餐读得到但不可改（editable == false）。
-                // 与其给用户一排永远打不开的锁，不如不显示。
-                aiContentControlCard
-
-                actionsCard
-
-                if !zone.nameServers.isEmpty {
-                    sectionCard("Name Servers") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(zone.nameServers, id: \.self) { server in
-                                Text(server)
-                                    .font(.callout.monospaced())
-                                    .textSelection(.enabled)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-
-                // Zone ID footer
-                Text("Zone ID · \(zone.id)")
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.tertiary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.bottom, 8)
-            }
-            .padding()
-        }
+        scrollBody
         .background { SkyBackground() }
         .navigationTitle(zone.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                // 置顶以 PinnedResourceStore 为准（跨资源类型统一）；同时把旧的
-                // CachedZone.pinned 字段镜像写回，老数据/其它入口读它时不至于分裂。
-                Button(isPinned ? String(localized: "取消固定") : String(localized: "固定到首页"),
-                       systemImage: isPinned ? "pin.fill" : "pin") {
-                    let nowPinned = pinnedStore.toggle(
-                        PinnedResource(type: .zone, resourceId: zone.id),
-                        accountId: zone.accountId
-                    )
-                    withAnimation(.smooth) {
-                        zone.pinned = nowPinned
-                    }
-                    SafeCache.perform("pin 状态保存") { try modelContext.save() }
-                }
-                .contentTransition(.symbolEffect(.replace))
-            }
-        }
+        .toolbar { pinToolbar }
         .sensoryFeedback(.impact(weight: .light), trigger: zone.pinned)
         .sensoryFeedback(.success, trigger: actionsViewModel.didPurge)
         .sensoryFeedback(.success, trigger: actionsViewModel.didInvalidate)
@@ -285,6 +226,76 @@ struct ZoneDetailView: View {
             Button("好", role: .cancel) {}
         } message: {
             Text(actionsViewModel.error ?? "")
+        }
+    }
+
+    /// 页面正文（hero / 分析 / 管理 / AI 内容控制 / 操作 / 元信息）。
+    /// 单独成型：body 若内联这一整段，整条 modifier 链在 Xcode 26 上 type-check 超时。
+    @ViewBuilder
+    private var scrollBody: some View {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 22) {
+            heroCard
+
+            // 分析：图表直接内嵌第一层级，置于管理之前
+            analyticsSection
+
+            // 本卡内 eager 门控行的保留判据：目的页是叶子（内部只开 sheet、不再 push）。
+            // 「规则」「负载均衡」的目的页还要继续 push，已改值式（ZoneRoute + 栈根 navdest）；
+            // 其余若日后加内层 push，必须同步改值式。
+            managementCard
+
+            // 整卡仅在读到任一组配置时出现：
+            // 机器人管控全套餐可用但需 bot-management.read；
+            // 两个 zone setting 是 Pro 起，免费套餐读得到但不可改（editable == false）。
+            // 与其给用户一排永远打不开的锁，不如不显示。
+            aiContentControlCard
+
+            actionsCard
+
+            if !zone.nameServers.isEmpty {
+                sectionCard("Name Servers") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(zone.nameServers, id: \.self) { server in
+                            Text(server)
+                                .font(.callout.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            // Zone ID footer
+            Text("Zone ID · \(zone.id)")
+                .font(.caption2.monospaced())
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 8)
+        }
+        .padding()
+    }
+    }
+
+    /// 置顶按钮所在 toolbar。抽出来避免 button/三元表达式参与 body 的类型推导。
+    @ToolbarContentBuilder
+    private var pinToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            // 置顶以 PinnedResourceStore 为准（跨资源类型统一）；同时把旧的
+            // CachedZone.pinned 字段镜像写回，老数据/其它入口读它时不至于分裂。
+            Button(isPinned ? String(localized: "取消固定") : String(localized: "固定到首页"),
+                   systemImage: isPinned ? "pin.fill" : "pin") {
+                let nowPinned = pinnedStore.toggle(
+                    PinnedResource(type: .zone, resourceId: zone.id),
+                    accountId: zone.accountId
+                )
+                withAnimation(.smooth) {
+                    zone.pinned = nowPinned
+                }
+                SafeCache.perform("pin 状态保存") { try modelContext.save() }
+            }
+            .contentTransition(.symbolEffect(.replace))
         }
     }
 
