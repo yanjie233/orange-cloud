@@ -29,18 +29,32 @@ jobs:
         working-directory: apps/ios/Orange Cloud
         run: |
           set -o pipefail
+          # -jobs 2：macOS 标准 runner 只有 3 核 / 7GB，默认并行度会把 swift-frontend 打爆
           xcodebuild \
             -project "Orange Cloud.xcodeproj" \
             -scheme "Orange Cloud" \
             -configuration Release \
             -destination "generic/platform=iOS" \
             -derivedDataPath "$RUNNER_TEMP/dd" \
+            -jobs 2 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             SWIFT_ACTIVE_COMPILATION_CONDITIONS="OPENSOURCE_UNLOCKED" \
-            build
+            build 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Show failure summary
+        if: failure()
+        run: |
+          grep -nE "error:|BUILD FAILED|The following build commands failed|Command .* failed" "$RUNNER_TEMP/build.log" | tail -40 || tail -80 "$RUNNER_TEMP/build.log"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xcodebuild-log
+          path: ${{ runner.temp }}/build.log
+          if-no-files-found: ignore
 
       - name: Package unsigned ipa
         run: |
