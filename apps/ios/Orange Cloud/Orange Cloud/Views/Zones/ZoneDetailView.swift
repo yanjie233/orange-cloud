@@ -94,40 +94,7 @@ struct ZoneDetailView: View {
     }
 
     var body: some View {
-        scrollBody
-        .background { SkyBackground() }
-        .navigationTitle(zone.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { pinToolbar }
-        .sensoryFeedback(.impact(weight: .light), trigger: zone.pinned)
-        .sensoryFeedback(.success, trigger: actionsViewModel.didPurge)
-        .sensoryFeedback(.success, trigger: actionsViewModel.didInvalidate)
-        .task {
-            if canReadSettings {
-                await actionsViewModel.loadSettings()
-                await actionsViewModel.loadAISettings()
-            }
-            if canReadBots {
-                await actionsViewModel.loadBotConfig()
-            }
-            if canReadPrecursor {
-                await actionsViewModel.loadPrecursor()
-            }
-        }
-        .task {
-            // 暂停态只需 zone.read（登录必备），与上面的 settings 权限无关：
-            // 进页用 API 校准一次，纠正列表缓存里过期的暂停态
-            await syncPausedFromAPI()
-        }
-        .task {
-            // 该 zone 尚未统计过记录数（前 50 个之外 / Dashboard 未加载完就进来）：
-            // 入页轻量拉一次 total_count 回写缓存，首屏不显示 0 条
-            if zone.dnsRecordCount == nil, records.isEmpty, auth.hasScope("dns.read"),
-               let count = try? await session.dnsService.recordCount(zoneId: zone.id) {
-                zone.dnsRecordCount = count
-                SafeCache.perform("dnsRecordCount 保存") { try modelContext.save() }
-            }
-        }
+        chromeTop
         .refreshable {
             if auth.hasScope("analytics.read") {
                 await analyticsViewModel.refresh()
@@ -228,6 +195,46 @@ struct ZoneDetailView: View {
             Text(actionsViewModel.error ?? "")
         }
     }
+
+    /// body 的前半段修饰符链。单独成型 + 链根 AnyView：
+    /// 否则十几个带闭包的修饰符串在一个表达式里，Xcode 26 推断不出类型（type-check 超时）。
+    private var chromeTop: some View {
+        AnyView(scrollBody)
+        .background { SkyBackground() }
+        .navigationTitle(zone.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { pinToolbar }
+        .sensoryFeedback(.impact(weight: .light), trigger: zone.pinned)
+        .sensoryFeedback(.success, trigger: actionsViewModel.didPurge)
+        .sensoryFeedback(.success, trigger: actionsViewModel.didInvalidate)
+        .task {
+            if canReadSettings {
+                await actionsViewModel.loadSettings()
+                await actionsViewModel.loadAISettings()
+            }
+            if canReadBots {
+                await actionsViewModel.loadBotConfig()
+            }
+            if canReadPrecursor {
+                await actionsViewModel.loadPrecursor()
+            }
+        }
+        .task {
+            // 暂停态只需 zone.read（登录必备），与上面的 settings 权限无关：
+            // 进页用 API 校准一次，纠正列表缓存里过期的暂停态
+            await syncPausedFromAPI()
+        }
+        .task {
+            // 该 zone 尚未统计过记录数（前 50 个之外 / Dashboard 未加载完就进来）：
+            // 入页轻量拉一次 total_count 回写缓存，首屏不显示 0 条
+            if zone.dnsRecordCount == nil, records.isEmpty, auth.hasScope("dns.read"),
+               let count = try? await session.dnsService.recordCount(zoneId: zone.id) {
+                zone.dnsRecordCount = count
+                SafeCache.perform("dnsRecordCount 保存") { try modelContext.save() }
+            }
+        }
+    }
+
 
     /// 页面正文（hero / 分析 / 管理 / AI 内容控制 / 操作 / 元信息）。
     /// 单独成型：body 若内联这一整段，整条 modifier 链在 Xcode 26 上 type-check 超时。
