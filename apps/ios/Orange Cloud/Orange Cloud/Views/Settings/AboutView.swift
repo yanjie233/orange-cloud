@@ -82,7 +82,7 @@ struct AboutView: View {
             } footer: {
                 VStack(spacing: 4) {
                     Text("Orange Cloud · 第三方 Cloudflare 客户端")
-                    Text("© 2026 柘家科技有限公司")
+                    Text("@ Yanjie233")
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 8)
