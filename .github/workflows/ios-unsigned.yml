@@ -43,7 +43,6 @@ jobs:
             DEVELOPMENT_TEAM="" \
             SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) OPENSOURCE_UNLOCKED' \
             SWIFT_COMPILATION_MODE=singlefile \
-            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -solver-expression-time-threshold -Xfrontend 60000' \
             build 2>&1 | tee "$RUNNER_TEMP/build.log"
 
       - name: Show failure summary
